@@ -3,9 +3,9 @@ from graphviz import Graph
 import string
 
 
-class AdjListGraph:
+class AdjMatrixGraph:
     def __init__(self):
-        self.adj = list()  # Список смежности
+        self.adj = np.zeros((0, 0))  # Матрица смежности
         self.attributes = list()  # Список атрибутов вершин, list of dict
 
     def add_vertices(self, n):
@@ -13,16 +13,29 @@ class AdjListGraph:
 
         :param int n: колиичество вершин для добавления
         """
+        self.adj = self.enlarge_matrix(self.adj, n)
         for i in range(n):
-            self.adj.append(list())
             self.attributes.append(dict())
+
+    def enlarge_matrix(self, a, n):
+        """ Добавляет с правого и нижнего края матрицы n столбцов и n строк с
+        нулями
+
+        :param np.array a: матрица
+        :param int n: количество строк/столбцов для добавления
+        :return: результат добавления
+        :rtype: np.array
+        """
+        cols, rows = a.shape
+        return np.hstack((np.vstack((a, np.zeros((n, cols)))),
+                          np.zeros((rows + n, n))))
 
     def remove_vertex(self, v):
         """ Удалить вершину из графа
 
         :param int v: индекс вершинаы графа
         """
-        self.adj.pop(v)
+        self.adj = np.delete(np.delete(self.adj, v, 1), v, 0)
         self.attributes.pop(v)
 
     def number_of_vertices(self):
@@ -30,7 +43,7 @@ class AdjListGraph:
 
         :rtype: int
         """
-        return len(self.adj)
+        return len(self.attributes)
 
     def add_edge(self, u, v):
         """ Добавить ребро, соединяющее вершины с индексами u и v
@@ -38,24 +51,7 @@ class AdjListGraph:
         :param int u: индекс вершины графа
         :param int v: индекс вершины графа
         """
-        #начал делать не так
-        """self.adj[u], self.adj[v] = [u], [v]
-        if u in self.attributes[u]:
-            temp = self.attributes[u][u]
-            temp.append(v)
-            self.attributes[u][u] = temp
-        else:
-            self.attributes[u][u] = [v]
-            
-        if v in self.attributes[v]:
-            temp = self.attributes[v][v]
-            temp.append(u)
-            self.attributes[v][v] = temp
-        else:
-            self.attributes[v][v] = [u]"""
-        
-        self.adj[u].append(v)
-        self.adj[v].append(u)
+        self.adj[u][v] = 1
 
     def remove_edge(self, u, v):
         """ Удалить ребро, соединяющее вершины с индексами u и v
@@ -63,9 +59,8 @@ class AdjListGraph:
         :param int u: индекс вершины графа
         :param int v: индекс вершины графа
         """
-        self.adj[u].pop(v)
-        self.adj[v].pop(u)
-        
+        self.adj[u][v] = 0
+
     def number_of_edges(self):
         """ Возвращает количество ребер в графе
 
@@ -73,8 +68,9 @@ class AdjListGraph:
         """
         num = 0
         for i in range(len(self.adj)):
-            num += len(self.adj[i])
-        return int(num/2)
+            for j in range(len(self.adj[i])):
+                num += self.adj[i][j]
+        return int(num)
 
     def neighbors(self, v):
         """ Возвращает список индексов вершин, соседних с данной
@@ -82,7 +78,13 @@ class AdjListGraph:
         :param int v: индекс вершины графа
         :rtype: list of int
         """
-        return self.adj[v]
+        lst = []
+        for i in range(len(self.adj[v])):
+            if self.adj[v][i] == 0:
+                continue
+            else:
+                lst.append(i)
+        return lst
 
     def draw(self, filename='test.gv'):
         """
@@ -105,8 +107,8 @@ class AdjListGraph:
                 g.node(str(v))
 
         for i in range(self.number_of_vertices()):
-            for j in self.adj[i]:
-                if i < j:
+            for j in range(i, self.number_of_vertices()):
+                if self.adj[i][j]:
                     g.edge(str(i), str(j))
 
         g.view()
